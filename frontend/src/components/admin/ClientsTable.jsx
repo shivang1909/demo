@@ -804,9 +804,9 @@ const ProfessionalTable = () => {
     );
   };
 
-  const renderInfoCards = () => {
+  // Memoized Info Cards
+  const memoizedInfoCards = useMemo(() => {
     if (!selectedUser) return null;
-
     const rawFields = [
       { key: "mobile", title: "Mobile Number" },
       { key: "locationOfInvestor", title: "Business Location" },
@@ -815,8 +815,6 @@ const ProfessionalTable = () => {
       { key: "originOfFunds", title: "Origin of Funds" },
       { key: "sourceOfWealthOrIncome", title: "Source of Income" },
     ];
-
-    // Filter only fields where isVerified is false
     const unverifiedFields = rawFields
       .filter(({ key }) => selectedUser[key]?.isVerified === false)
       .map(({ key, title }) => ({
@@ -824,7 +822,6 @@ const ProfessionalTable = () => {
         title,
         value: selectedUser[key]?.value,
       }));
-
     if (unverifiedFields.length === 0) {
       return (
         <div className="text-center py-8 text-gray-500">
@@ -833,7 +830,6 @@ const ProfessionalTable = () => {
         </div>
       );
     }
-
     return (
       <div className="space-y-4">
         {unverifiedFields.map((field) => (
@@ -847,15 +843,13 @@ const ProfessionalTable = () => {
         ))}
       </div>
     );
-  };
+  }, [selectedUser, accepted.acceptedfields]);
 
-  const renderDocumentCards = () => {
+  // Memoized Document Cards
+  const memoizedDocumentCards = useMemo(() => {
     if (!selectedUser) return null;
-
-    // Filter only unverified documents
     const unverifiedDocs =
       selectedUser.documents?.filter((doc) => doc.verified === false) || [];
-
     if (unverifiedDocs.length === 0) {
       return (
         <div className="text-center py-8 text-gray-500">
@@ -864,20 +858,16 @@ const ProfessionalTable = () => {
         </div>
       );
     }
-
     return (
       <div className="space-y-4">
         {unverifiedDocs.map((doc, idx) => {
           const docKey = `document_${idx + 1}`;
           const docName = doc.name;
-
           return (
             <ReviewCard
               key={docKey}
               title={docName}
-              isSelected={accepted.accepteddocuments.some(
-                (d) => d === doc.name
-              )}
+              isSelected={accepted.accepteddocuments.some((d) => d === doc.name)}
               isDocument={true}
               path={doc.path}
               onToggle={() => handleCardToggle(doc.name, "document")}
@@ -886,7 +876,11 @@ const ProfessionalTable = () => {
         })}
       </div>
     );
-  };
+  }, [selectedUser, accepted.accepteddocuments]);
+
+  // Replace renderInfoCards and renderDocumentCards with memoized versions
+  const renderInfoCards = () => memoizedInfoCards;
+  const renderDocumentCards = () => memoizedDocumentCards;
 
   const renderStepContent = () => {
     if (!selectedUser) return null;
