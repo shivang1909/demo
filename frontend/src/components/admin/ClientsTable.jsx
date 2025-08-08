@@ -99,6 +99,7 @@ const ProfessionalTable = () => {
   const animatingProfileRef = useRef(null);
   const expandedViewRef = useRef(null);
   const tableContainerRef = useRef(null);
+  const infoCardsScrollRef = useRef(null);
 
   // Sample data with additional status field
   const [data, setdata] = useState([]);
@@ -882,6 +883,12 @@ const ProfessionalTable = () => {
   const renderInfoCards = () => memoizedInfoCards;
   const renderDocumentCards = () => memoizedDocumentCards;
 
+  useEffect(() => {
+    if (infoCardsScrollRef.current) {
+      infoCardsScrollRef.current.scrollTop = 0;
+    }
+  }, [selectedUser, pendingRequestsTab]);
+
   const renderStepContent = () => {
     if (!selectedUser) return null;
 
@@ -1143,8 +1150,7 @@ const ProfessionalTable = () => {
                     </div>
 
                     {/* Tab Content */}
-                    <div className="flex-1 overflow-y-auto tiny-scrollbar">
-                     <div className="flex-1 overflow-y-auto tiny-scrollbar">
+                    <div className="flex-1 overflow-y-auto tiny-scrollbar" ref={infoCardsScrollRef}>
   <div className={pendingRequestsTab === "info" ? "block" : "hidden"}>
     {renderInfoCards()}
   </div>
