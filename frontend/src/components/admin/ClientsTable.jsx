@@ -628,7 +628,8 @@ const ProfessionalTable = () => {
     return (
       <div
         onClick={(e) => {
-          e.preventDefault(); // ADD THIS
+          e.preventDefault(); // Prevent scroll-to-top
+          e.stopPropagation(); // Prevent bubbling just in case
           onToggle();
         }}
         className={`relative p-6 rounded-xl border shadow-md transition-all duration-300 group hover:shadow-lg cursor-pointer ${
