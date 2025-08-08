@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import {
   Eye,
   Info,
@@ -23,7 +23,7 @@ import { FaArrowRight } from "react-icons/fa6";
 
 import { toast } from "react-hot-toast";
 import { handleDownloadDocuments } from "../../helper/downloaddocs";
-const FilterPanel = ({ filters, setFilters, resetFilters }) => {
+const FilterPanel = React.memo(({ filters, setFilters, resetFilters }) => {
   return (
     <div className="border border-gray-200 rounded-lg p-2 flex justify-between items-center">
       <div className="flex items-center space-x-2">
@@ -73,7 +73,7 @@ const FilterPanel = ({ filters, setFilters, resetFilters }) => {
       </div>
     </div>
   );
-};
+});
 const ProfessionalTable = () => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [activeTab, setActiveTab] = useState("info");
@@ -119,19 +119,19 @@ const ProfessionalTable = () => {
     return () => document.body.classList.remove("no-scroll");
   }, [isExpanded]);
 
-  const fetchClients = async () => {
+  const fetchClients = useCallback(async () => {
     try {
       const response = await axios.get(
         "http://localhost:5000/api/client/getall",
         {
-          withCredentials: true, // IMPORTANT: if your backend is checking cookies for auth
+          withCredentials: true,
         }
       );
       setdata(response.data);
     } catch (error) {
       console.error("Error fetching clients:", error);
     }
-  };
+  }, []);
   const [rejected, setRejected] = useState({
     rejectedfields: [],
     rejecteddocuments: [],
@@ -160,15 +160,13 @@ const ProfessionalTable = () => {
     }
   }, [rejected]);
 
-  const handleCardToggle = (field, type) => {
+  const handleCardToggle = useCallback((field, type) => {
     if (type === "document") {
-      // Find the matching document object based on the name
       const matchedDoc = accepted.accepteddocuments.find(
         (doc) => doc === field
       );
 
       if (matchedDoc) {
-        // Move to rejected
         setAccepted((prev) => ({
           ...prev,
           accepteddocuments: prev.accepteddocuments.filter(
@@ -180,7 +178,6 @@ const ProfessionalTable = () => {
           rejecteddocuments: [...prev.rejecteddocuments, matchedDoc],
         }));
       } else {
-        // If it's in rejected, move it back to accepted
         const matchedRejectedDoc = rejected.rejecteddocuments.find(
           (doc) => doc === field
         );
@@ -202,7 +199,6 @@ const ProfessionalTable = () => {
       const inAccepted = accepted.acceptedfields.includes(field);
 
       if (inAccepted) {
-        // Move to rejected
         setAccepted((prev) => ({
           ...prev,
           acceptedfields: prev.acceptedfields.filter((key) => key !== field),
@@ -212,7 +208,6 @@ const ProfessionalTable = () => {
           rejectedfields: [...prev.rejectedfields, field],
         }));
       } else {
-        // Move to accepted
         setRejected((prev) => ({
           ...prev,
           rejectedfields: prev.rejectedfields.filter((key) => key !== field),
@@ -223,13 +218,13 @@ const ProfessionalTable = () => {
         }));
       }
     }
-  };
+  }, [accepted.acceptedfields, accepted.accepteddocuments, rejected.rejecteddocuments]);
 
   useEffect(() => {
     fetchClients();
   }, []);
 
-  const handleViewDetails = (user, event) => {
+  const handleViewDetails = useCallback((user, event) => {
     if (isExpanded) return;
 
     const tableProfileElement = tableProfileRefs.current[user.id];
@@ -267,9 +262,9 @@ const ProfessionalTable = () => {
     setTimeout(() => {
       setIsExpanded(true);
     }, 50);
-  };
+  }, [isExpanded]);
 
-  const closeExpandedView = () => {
+  const closeExpandedView = useCallback(() => {
     fetchClients();
     setAccepted({ acceptedfields: [], accepteddocuments: [] });
     setRejected({ rejectedfields: [], rejecteddocuments: [] });
@@ -277,16 +272,14 @@ const ProfessionalTable = () => {
     setSelectedUser(null);
     setTimeout(() => {
       setAnimationData(null);
-      // Reset selections
     }, 600);
 
     setIsAnimating(false);
     setIsExpanded(false);
     setCurrentStep(0);
-    setCurrentStep((prev) => prev + 0);
-  };
+  }, [fetchClients]);
 
-  const handleStepNavigation = (stepIndex) => {
+  const handleStepNavigation = useCallback((stepIndex) => {
     if (selectedUser.status === "Not Submitted") {
       toast.error("Client has not submitted any documents.");
       return;
@@ -294,11 +287,11 @@ const ProfessionalTable = () => {
     if (stepIndex >= 0 && stepIndex < steps.length) {
       setCurrentStep(stepIndex);
     }
-  };
-  const handleRejectedMail = async () => {
+  }, [selectedUser, steps.length]);
+  const handleRejectedMail = useCallback(async () => {
     try {
-      const response = await axios.post(
-        "http://localhost:5000/api/client/resend", // same endpoint as Save & Next
+      await axios.post(
+        "http://localhost:5000/api/client/resend",
         {
           clientId: selectedUser._id,
           accepted: {
@@ -318,8 +311,7 @@ const ProfessionalTable = () => {
         }
       );
 
-      closeExpandedView(); // close view after sending
-      // Optional: toast.success("Rejected mail sent!")
+      closeExpandedView();
     } catch (error) {
       if (error.response) {
         console.error("❌ Server error:", error.response.data);
@@ -328,13 +320,12 @@ const ProfessionalTable = () => {
       } else {
         console.error("❌ Request error:", error.message);
       }
-      // Optional: toast.error("Failed to send rejected mail.");
     }
-  };
+  }, [selectedUser?._id, accepted.acceptedfields, accepted.accepteddocuments, rejected.rejectedfields, rejected.rejecteddocuments, closeExpandedView]);
 
-  const handleSaveAndNext = async () => {
+  const handleSaveAndNext = useCallback(async () => {
     try {
-      const response = await axios.post(
+      await axios.post(
         "http://localhost:5000/api/client/resend",
         {
           clientId: selectedUser._id,
@@ -350,20 +341,14 @@ const ProfessionalTable = () => {
         {
           headers: {
             "Content-Type": "application/json",
-            // You can include Authorization token here if needed
-            // Authorization: `Bearer ${token}`,
           },
-          withCredentials: true, // Sends cookies with request
+          withCredentials: true,
         }
       );
 
-      // ✅ Optional: success action
-      selectedUser.status = "Approved"; // Update status to Pending
+      selectedUser.status = "Approved";
       setCurrentStep((prev) => prev + 1);
-      // You can show a success toast or move to next step here
-      // e.g., toast.success('Saved successfully!');
     } catch (error) {
-      // ❌ Handle errors
       if (error.response) {
         console.error(
           "❌ Server responded with an error:",
@@ -375,7 +360,7 @@ const ProfessionalTable = () => {
         console.error("❌ Error setting up request:", error.message);
       }
     }
-  };
+  }, [selectedUser?._id, accepted.acceptedfields, accepted.accepteddocuments, rejected.rejectedfields, rejected.rejecteddocuments]);
 
   // Close expanded view on escape key
   useEffect(() => {
@@ -389,7 +374,7 @@ const ProfessionalTable = () => {
     return () => {
       document.removeEventListener("keydown", handleEscape);
     };
-  }, [isExpanded]);
+  }, [isExpanded, closeExpandedView]);
 
   // Handle animation completion
   useEffect(() => {
@@ -402,12 +387,12 @@ const ProfessionalTable = () => {
     }
   }, [isExpanded, isAnimating]);
 
-  const resetFilters = () => {
+  const resetFilters = useCallback(() => {
     setFilters({
       name: "",
       status: "all",
     });
-  };
+  }, []);
 
   // Filter logic
   const filteredData = useMemo(() => {
@@ -424,7 +409,7 @@ const ProfessionalTable = () => {
   }, [data, filters]);
 
   // Generate avatar color based on name
-  const getAvatarColor = (name) => {
+  const getAvatarColor = useCallback((name) => {
     const colors = [
       "#ef4444",
       "#f97316",
@@ -446,9 +431,9 @@ const ProfessionalTable = () => {
     ];
     const index = name.charCodeAt(0) % colors.length;
     return colors[index];
-  };
+  }, []);
 
-  const ProfileAvatar = ({
+  const ProfileAvatar = React.memo(({
     name,
     size = "large",
     className = "",
@@ -480,10 +465,10 @@ const ProfessionalTable = () => {
         {name.charAt(0).toUpperCase()}
       </div>
     );
-  };
+  });
 
   // Animated profile component with enhanced animation
-  const AnimatedProfile = () => {
+  const AnimatedProfile = React.memo(() => {
     if (!isAnimating || !animationData || !selectedUser) return null;
 
     const getEndPosition = () => {
@@ -522,21 +507,19 @@ const ProfessionalTable = () => {
         />
       </div>
     );
-  };
+  });
 
-  const ProgressBar = () => {
+  const ProgressBar = React.memo(({ currentStep, totalSteps, steps }) => {
     return (
       <div className="w-full max-w-2xl mx-auto">
         <div className="flex items-center justify-between relative">
-          {/* Progress line */}
           <div className="absolute top-6 left-0 right-2 h-1 bg-gray-200 rounded-full">
             <div
               className="h-full bg-green-500 rounded-full transition-all duration-500 ease-out"
-              style={{ width: `${(currentStep / (steps.length - 1)) * 100}%` }}
+              style={{ width: `${(currentStep / (totalSteps - 1)) * 100}%` }}
             />
           </div>
 
-          {/* Step indicators */}
           {steps.map((step, index) => {
             const StepIcon = step.icon;
             const isActive = index === currentStep;
@@ -548,7 +531,6 @@ const ProfessionalTable = () => {
                 className="relative flex flex-col items-center"
               >
                 <button
-                  // onClick={() => handleStepNavigation(index)}
                   className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 ${
                     isActive
                       ? "bg-green-500 text-white ring-4 ring-green-100"
@@ -580,16 +562,16 @@ const ProfessionalTable = () => {
         </div>
       </div>
     );
-  };
+  });
 
-  const ToggleSwitch = () => {
+  const ToggleSwitch = React.memo(() => {
     return (
       <div className="flex items-center justify-center mb-8">
         <div className="flex items-center bg-gray-100 rounded-full p-1">
           <button
-            type="button" // ADD THIS
+            type="button"
             onClick={(e) => {
-              e.preventDefault(); // ADD THIS
+              e.preventDefault();
             }}
             className={`px-6 py-3 rounded-full text-sm font-medium transition-all duration-300 ${
               approveRejectMode === "reject"
@@ -600,9 +582,9 @@ const ProfessionalTable = () => {
             Reject
           </button>
           <button
-            type="button" // ADD THIS
+            type="button"
             onClick={(e) => {
-              e.preventDefault(); // ADD THIS
+              e.preventDefault();
             }}
             className={`px-6 py-3 rounded-full text-sm font-medium transition-all duration-300 ${
               approveRejectMode === "approve"
@@ -615,9 +597,9 @@ const ProfessionalTable = () => {
         </div>
       </div>
     );
-  };
+  });
 
-  const ReviewCard = ({
+  const ReviewCard = React.memo(({
     title,
     value,
     isSelected,
@@ -628,7 +610,7 @@ const ProfessionalTable = () => {
     return (
       <div
         onClick={(e) => {
-          e.preventDefault(); // ADD THIS
+          e.preventDefault();
           onToggle();
         }}
         className={`relative p-6 rounded-xl border shadow-md transition-all duration-300 group hover:shadow-lg cursor-pointer ${
@@ -637,7 +619,6 @@ const ProfessionalTable = () => {
             : "border-red-200 bg-red-50"
         }`}
       >
-        {/* Status badge */}
         <div className="absolute top-4 right-4">
           <div
             className={`w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold ${
@@ -652,16 +633,13 @@ const ProfessionalTable = () => {
           </div>
         </div>
 
-        {/* Content layout */}
         <div className="flex items-start gap-4">
-          {/* Icon */}
           {isDocument && (
             <div className="w-10 h-10 flex items-center justify-center bg-white text-gray-600 rounded-lg">
               <FileText className="w-5 h-5" />
             </div>
           )}
 
-          {/* Text content */}
           <div className="flex flex-col flex-1 space-y-1">
             <h4 className="text-sm text-gray-500 font-medium uppercase tracking-wide">
               {title}
@@ -686,13 +664,13 @@ const ProfessionalTable = () => {
         </div>
       </div>
     );
-  };
+  });
 
-  const TabButton = ({ isActive, onClick, children, icon: Icon }) => (
+  const TabButton = React.memo(({ isActive, onClick, children, icon: Icon }) => (
     <button
-      type="button" // ADD THIS
+      type="button"
       onClick={(e) => {
-        e.preventDefault(); // ADD THIS
+        e.preventDefault();
         onClick();
       }}
       className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
@@ -704,8 +682,8 @@ const ProfessionalTable = () => {
       <Icon className="w-4 h-4" />
       <span>{children}</span>
     </button>
-  );
-  const MailPreview = () => {
+  ));
+  const MailPreview = React.memo(() => {
     const isApproved = approveRejectMode === "approve";
 
     const rejectedFields = rejected.rejectedfields || [];
@@ -719,7 +697,6 @@ const ProfessionalTable = () => {
         </div>
 
         <div className="space-y-4">
-          {/* Email Header */}
           <div className="border-b border-gray-200 pb-4">
             <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
               <span>To: {selectedUser?.email}</span>
@@ -734,7 +711,6 @@ const ProfessionalTable = () => {
             </h4>
           </div>
 
-          {/* Email Body */}
           <div className="space-y-4 text-sm">
             <p>Dear {selectedUser?.name},</p>
 
@@ -793,7 +769,6 @@ const ProfessionalTable = () => {
             </p>
           </div>
 
-          {/* Email Footer */}
           <div className="border-t border-gray-200 pt-4 text-xs text-gray-500">
             <p>
               This is an automated message. Please do not reply to this email.
@@ -802,9 +777,9 @@ const ProfessionalTable = () => {
         </div>
       </div>
     );
-  };
+  });
 
-  const renderInfoCards = () => {
+  const renderInfoCards = useCallback(() => {
     if (!selectedUser) return null;
 
     const rawFields = [
@@ -816,7 +791,6 @@ const ProfessionalTable = () => {
       { key: "sourceOfWealthOrIncome", title: "Source of Income" },
     ];
 
-    // Filter only fields where isVerified is false
     const unverifiedFields = rawFields
       .filter(({ key }) => selectedUser[key]?.isVerified === false)
       .map(({ key, title }) => ({
@@ -847,12 +821,11 @@ const ProfessionalTable = () => {
         ))}
       </div>
     );
-  };
+  }, [selectedUser, accepted.acceptedfields, handleCardToggle]);
 
-  const renderDocumentCards = () => {
+  const renderDocumentCards = useCallback(() => {
     if (!selectedUser) return null;
 
-    // Filter only unverified documents
     const unverifiedDocs =
       selectedUser.documents?.filter((doc) => doc.verified === false) || [];
 
@@ -886,13 +859,13 @@ const ProfessionalTable = () => {
         })}
       </div>
     );
-  };
+  }, [selectedUser, accepted.accepteddocuments, handleCardToggle]);
 
-  const renderStepContent = () => {
+  const renderStepContent = useCallback(() => {
     if (!selectedUser) return null;
 
     switch (currentStep) {
-      case 0: // Profile
+      case 0:
         return (
           <>
             <div className="space-y-5">
@@ -904,7 +877,7 @@ const ProfessionalTable = () => {
                 </div>
                 {selectedUser.status !== "Approved" && (
                   <div className="w-1/2">
-                    <ProgressBar />
+                    <ProgressBar currentStep={currentStep} totalSteps={steps.length} steps={steps} />
                   </div>
                 )}
                 {selectedUser.status !== "Approved" && (
@@ -918,11 +891,9 @@ const ProfessionalTable = () => {
                   </div>
                 )}
               </div>
-              {/* PERSONAL INFORMATION */}
               <div className="bg-white h-fit flex justify-between items-start rounded-2xl p-8 shadow-sm border border-gray-100">
                 <div>
                   <div className="grid grid-cols-1  gap-8">
-                    {/* Verified Fields */}
                     {selectedUser.mobile?.isVerified && (
                       <div className="space-y-2">
                         <p className="text-sm font-medium text-gray-500 uppercase tracking-wide">
@@ -986,7 +957,6 @@ const ProfessionalTable = () => {
                   </div>
                 </div>
 
-                {/* DOCUMENTS */}
                 <div className="bg-white w-5xl rounded-2xl p-4 ">
                   <div className="grid grid-cols-2 gap-5 max-h-fit overflow-y-auto">
                     {selectedUser.documents?.some(
@@ -1030,14 +1000,14 @@ const ProfessionalTable = () => {
                                   "/"
                                 )}`;
                                 const response = await fetch(fileUrl, {
-                                  credentials: "include", // if cookie-based auth is used
+                                  credentials: "include",
                                 });
                                 const blob = await response.blob();
                                 const downloadUrl =
                                   window.URL.createObjectURL(blob);
                                 const a = document.createElement("a");
                                 a.href = downloadUrl;
-                                a.download = doc.name || `Document-${idx + 1}`; // set default filename
+                                a.download = doc.name || `Document-${idx + 1}`;
                                 document.body.appendChild(a);
                                 a.click();
                                 a.remove();
@@ -1051,17 +1021,12 @@ const ProfessionalTable = () => {
                         ))
                     ) : (
                       <div className="ml-20 flex flex-col items-center justify-center h-full text-center py-20">
-                        {/* Icon */}
                         <div className="bg-indigo-100 text-indigo-600 rounded-full p-4 mb-6">
                           <FileText size={40} />
                         </div>
-
-                        {/* Main Heading */}
                         <h2 className="text-2xl font-semibold text-slate-800 mb-2">
                           No Data Available
                         </h2>
-
-                        {/* Description */}
                         <p className="text-gray-500 max-w-md">
                           You haven’t updated any documents yet. Start by
                           Approve/decline pending requestes.
@@ -1072,12 +1037,11 @@ const ProfessionalTable = () => {
                 </div>
               </div>
 
-              {/* NEXT BUTTON */}
             </div>
           </>
         );
 
-      case 1: // Pending Requests
+      case 1:
         return (
           <>
             <div className="space-y-8">
@@ -1092,7 +1056,7 @@ const ProfessionalTable = () => {
                 </div>
                 {selectedUser.status !== "Approved" && (
                   <div className="w-full">
-                    <ProgressBar />
+                    <ProgressBar currentStep={currentStep} totalSteps={steps.length} steps={steps} />
                   </div>
                 )}
                 <div className="w-full flex justify-end">
@@ -1117,7 +1081,7 @@ const ProfessionalTable = () => {
               <div className="bg-white rounded-2xl p-8 shadow-sm border h-full border-gray-100 ">
                 <div className="flex justify-between ">
                   <h3 className="text-2xl font-bold text-gray-900 mb-8">
-                    Review Information{" "}
+                    Review Information
                     <span className="text-xs font-medium">
                       (click on the cards for approve/decline data)
                     </span>
@@ -1126,9 +1090,7 @@ const ProfessionalTable = () => {
                 </div>
 
                 <div className="flex gap-8 h-full ">
-                  {/* Left Section - Tabs and Cards */}
                   <div className="w-1/2 flex flex-col max-h-[400px]">
-                    {/* Tab Navigation */}
                     <div className="flex space-x-2 mb-6">
                       <TabButton
                         type="button"
@@ -1148,7 +1110,6 @@ const ProfessionalTable = () => {
                       </TabButton>
                     </div>
 
-                    {/* Tab Content */}
                     <div className="flex-1 overflow-y-auto tiny-scrollbar">
                      <div className="flex-1 overflow-y-auto tiny-scrollbar">
   <div className={pendingRequestsTab === "info" ? "block" : "hidden"}>
@@ -1161,7 +1122,6 @@ const ProfessionalTable = () => {
                     </div>
                   </div>
 
-                  {/* Right Section - Mail Preview */}
                   <div className="w-1/2 max-h-[400px]">
                     <MailPreview />
                   </div>
@@ -1171,7 +1131,7 @@ const ProfessionalTable = () => {
           </>
         );
 
-      case 2: // Approval
+      case 2:
         setTimeout(() => {
           closeExpandedView();
         }, 3000);
@@ -1195,7 +1155,7 @@ const ProfessionalTable = () => {
       default:
         return null;
     }
-  };
+  }, [selectedUser, currentStep, approveRejectMode, pendingRequestsTab, handleStepNavigation, handleRejectedMail, handleSaveAndNext, renderInfoCards, renderDocumentCards]);
 
   const ExpandedView = React.memo(()=>{
     if (!selectedUser) return null;
@@ -1261,19 +1221,7 @@ const ProfessionalTable = () => {
     );
   });
 
-  // Close expanded view on escape key
-  useEffect(() => {
-    const handleEscape = (e) => {
-      if (e.key === "Escape" && isExpanded) {
-        closeExpandedView();
-      }
-    };
 
-    document.addEventListener("keydown", handleEscape);
-    return () => {
-      document.removeEventListener("keydown", handleEscape);
-    };
-  }, [isExpanded]);
 
   return (
     <div className="w-full min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 pt-32">
