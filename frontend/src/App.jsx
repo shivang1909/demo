@@ -5,8 +5,8 @@ import {  lazy } from 'react';
 
 
 // Layouts
-const AdminLayout = lazy(() => import('./Layouts/AdminLayout'));
-const UserLayout = lazy(() => import('./Layouts/UserLayout'));
+const AdminLayout = lazy(() => import('./layouts/AdminLayout'));
+const UserLayout = lazy(() => import('./layouts/UserLayout'));
 
 // Admin Pages
 const Dashboard = lazy(() => import('./pages/admin/Dashboard'));

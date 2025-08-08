@@ -423,6 +423,31 @@ const ProfessionalTable = () => {
     });
   }, [data, filters]);
 
+  const unverifiedInfoFields = useMemo(() => {
+    if (!selectedUser) return [];
+    const rawFields = [
+      { key: "mobile", title: "Mobile Number" },
+      { key: "locationOfInvestor", title: "Business Location" },
+      { key: "occupationOrBusiness", title: "Occupation" },
+      { key: "residenceAddress", title: "Residential Address" },
+      { key: "originOfFunds", title: "Origin of Funds" },
+      { key: "sourceOfWealthOrIncome", title: "Source of Income" },
+    ];
+
+    return rawFields
+      .filter(({ key }) => selectedUser[key]?.isVerified === false)
+      .map(({ key, title }) => ({
+        key,
+        title,
+        value: selectedUser[key]?.value,
+      }));
+  }, [selectedUser]);
+
+  const unverifiedDocs = useMemo(() => {
+    if (!selectedUser) return [];
+    return selectedUser.documents?.filter((doc) => doc.verified === false) || [];
+  }, [selectedUser]);
+
   // Generate avatar color based on name
   const getAvatarColor = (name) => {
     const colors = [
@@ -471,11 +496,13 @@ const ProfessionalTable = () => {
           }
         : {};
 
+    const bgColor = useMemo(() => getAvatarColor(name), [name]);
+
     return (
       <div
         {...refProps}
         className={`${sizeClasses[size]} rounded-full flex items-center justify-center text-white font-bold shadow-lg ${className}`}
-        style={{ backgroundColor: getAvatarColor(name) }}
+        style={{ backgroundColor: bgColor }}
       >
         {name.charAt(0).toUpperCase()}
       </div>
@@ -807,25 +834,7 @@ const ProfessionalTable = () => {
   const renderInfoCards = () => {
     if (!selectedUser) return null;
 
-    const rawFields = [
-      { key: "mobile", title: "Mobile Number" },
-      { key: "locationOfInvestor", title: "Business Location" },
-      { key: "occupationOrBusiness", title: "Occupation" },
-      { key: "residenceAddress", title: "Residential Address" },
-      { key: "originOfFunds", title: "Origin of Funds" },
-      { key: "sourceOfWealthOrIncome", title: "Source of Income" },
-    ];
-
-    // Filter only fields where isVerified is false
-    const unverifiedFields = rawFields
-      .filter(({ key }) => selectedUser[key]?.isVerified === false)
-      .map(({ key, title }) => ({
-        key,
-        title,
-        value: selectedUser[key]?.value,
-      }));
-
-    if (unverifiedFields.length === 0) {
+    if (unverifiedInfoFields.length === 0) {
       return (
         <div className="text-center py-8 text-gray-500">
           <FileText className="w-12 h-12 mx-auto mb-4 text-gray-300" />
@@ -836,7 +845,7 @@ const ProfessionalTable = () => {
 
     return (
       <div className="space-y-4">
-        {unverifiedFields.map((field) => (
+        {unverifiedInfoFields.map((field) => (
           <ReviewCard
             key={field.key}
             title={field.title}
@@ -851,10 +860,6 @@ const ProfessionalTable = () => {
 
   const renderDocumentCards = () => {
     if (!selectedUser) return null;
-
-    // Filter only unverified documents
-    const unverifiedDocs =
-      selectedUser.documents?.filter((doc) => doc.verified === false) || [];
 
     if (unverifiedDocs.length === 0) {
       return (
@@ -1275,6 +1280,76 @@ const ProfessionalTable = () => {
     };
   }, [isExpanded]);
 
+  const tableRows = useMemo(() => {
+    return filteredData.map((item, index) => (
+      <tr
+        key={index}
+        className="hover:bg-purple-50 transition-colors group"
+      >
+        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+          {index + 1}
+        </td>
+        <td className="px-6 py-4 whitespace-nowrap">
+          <ProfileAvatar
+            name={item.name}
+            size="small"
+            isRef={true}
+            userId={item.id}
+          />
+        </td>
+        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+          {item.name}
+        </td>
+        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+          {item.email}
+        </td>
+        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+            {item.documents.filter((doc) => doc.verified === true).length} / {item.documents.length} Documents
+          </span>
+        </td>
+        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+          {item.referenceBy}
+        </td>
+        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 flex items-center justify-center">
+          {item.status}
+        </td>
+        <td className="px-6 py-4 text-center">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleViewDetails(item);
+            }}
+            className="inline-flex items-center px-3 cursor-pointer  py-1.5 border border-purple-300 rounded-lg text-sm font-medium text-purple-700 bg-purple-50 hover:bg-purple-100 transition-colors group-hover:bg-purple-200 active:scale-95 duration-300"
+          >
+            <Eye className="w-4 h-4 mr-2" />
+            View Details
+          </button>
+        </td>
+ 
+        <td
+          className={`px-6 py-4 flex items-center justify-center ${
+            item.documents.filter((doc) => doc.verified === true).length === 0
+              ? "cursor-not-allowed opacity-50"
+              : "cursor-pointer"
+          }`}
+          onClick={
+            item.documents?.length === 0
+              ? null
+              : () =>
+                  handleDownloadDocuments(
+                    item.documents,
+                    item._id,
+                    item.name
+                  )
+          }
+        >
+          <DownloadIcon className="text-blue-600" />
+        </td>
+      </tr>
+    ));
+  }, [filteredData, isExpanded]);
+
   return (
     <div className="w-full min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 pt-32">
       {/* Main Table View */}
@@ -1366,78 +1441,7 @@ const ProfessionalTable = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredData.map((item, index) => (
-                  <tr
-                    key={index}
-                    className="hover:bg-purple-50 transition-colors group"
-                  >
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {index + 1}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <ProfileAvatar
-                        name={item.name}
-                        size="small"
-                        isRef={true}
-                        userId={item.id}
-                      />
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {item.name}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {item.email}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                        {
-                          item.documents.filter((doc) => doc.verified === true)
-                            .length
-                        }{" "}
-                        / {item.documents.length} Documents
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {item.referenceBy}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 flex items-center justify-center">
-                      {item.status}
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleViewDetails(item);
-                        }}
-                        className="inline-flex items-center px-3 cursor-pointer  py-1.5 border border-purple-300 rounded-lg text-sm font-medium text-purple-700 bg-purple-50 hover:bg-purple-100 transition-colors group-hover:bg-purple-200 active:scale-95 duration-300"
-                      >
-                        <Eye className="w-4 h-4 mr-2" />
-                        View Details
-                      </button>
-                    </td>
-
-                    <td
-                      className={`px-6 py-4 flex items-center justify-center ${
-                        item.documents.filter((doc) => doc.verified === true)
-                          .length === 0
-                          ? "cursor-not-allowed opacity-50"
-                          : "cursor-pointer"
-                      }`}
-                      onClick={
-                        item.documents?.length === 0
-                          ? null
-                          : () =>
-                              handleDownloadDocuments(
-                                item.documents,
-                                item._id,
-                                item.name
-                              )
-                      }
-                    >
-                      <DownloadIcon className="text-blue-600" />
-                    </td>
-                  </tr>
-                ))}
+                {tableRows}
               </tbody>
             </table>
 
