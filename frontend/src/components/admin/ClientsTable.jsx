@@ -99,6 +99,7 @@ const ProfessionalTable = () => {
   const animatingProfileRef = useRef(null);
   const expandedViewRef = useRef(null);
   const tableContainerRef = useRef(null);
+  const infoScrollRef = useRef(null);
 
   // Sample data with additional status field
   const [data, setdata] = useState([]);
@@ -222,6 +223,23 @@ const ProfessionalTable = () => {
           acceptedfields: [...prev.acceptedfields, field],
         }));
       }
+    }
+  };
+
+  const handleFieldCardToggle = (fieldKey) => {
+    const container = infoScrollRef.current;
+    const previousScrollTop = container ? container.scrollTop : null;
+
+    handleCardToggle(fieldKey, "field");
+
+    if (previousScrollTop !== null) {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (infoScrollRef.current) {
+            infoScrollRef.current.scrollTop = previousScrollTop;
+          }
+        });
+      });
     }
   };
 
@@ -838,7 +856,7 @@ const ProfessionalTable = () => {
             title={field.title}
             value={field.value}
             isSelected={accepted.acceptedfields.some((f) => f === field.key)}
-            onToggle={() => handleCardToggle(field.key, "field")}
+            onToggle={() => handleFieldCardToggle(field.key)}
           />
         ))}
       </div>
@@ -1143,8 +1161,7 @@ const ProfessionalTable = () => {
                     </div>
 
                     {/* Tab Content */}
-                    <div className="flex-1 overflow-y-auto tiny-scrollbar">
-                     <div className="flex-1 overflow-y-auto tiny-scrollbar">
+                    <div className="flex-1 overflow-y-auto tiny-scrollbar" ref={infoScrollRef}>
   <div className={pendingRequestsTab === "info" ? "block" : "hidden"}>
     {renderInfoCards()}
   </div>
@@ -1153,7 +1170,6 @@ const ProfessionalTable = () => {
   </div>
 </div>
                     </div>
-                  </div>
 
                   {/* Right Section - Mail Preview */}
                   <div className="w-1/2 max-h-[400px]">
